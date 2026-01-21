@@ -4,17 +4,21 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Participant, Campaign, ParticipationStatus } from "@/types"
 import { Button } from "@/components/ui/button"
+import StatusBadge from "@/components/ui/status-badge"
+import TimerChip from "@/components/ui/timer-chip"
+import PreflightModal from "@/components/ui/preflight-modal"
+import AuditDrawer from "@/components/ui/audit-drawer"
+import ChecklistBlock from "@/components/ui/checklist-block"
 import { formatDate, formatCurrency } from "@/lib/utils"
-// Lucide React 아이콘 호환성 이슈 해결을 위한 강제 캐스팅
-import { ExternalLink, CheckCircle, XCircle, AlertTriangle, FileText, Image as ImageIcon } from "lucide-react"
+import { ExternalLink, CheckCircle, XCircle, AlertTriangle, FileText, Image as ImageIcon, Clock } from "lucide-react"
 
-// React 19 + Lucide React 타입 충돌 방지
 const Icons = {
     ExternalLink: ExternalLink as any,
     ImageIcon: ImageIcon as any,
     FileText: FileText as any,
     CheckCircle: CheckCircle as any,
-    AlertTriangle: AlertTriangle as any
+    AlertTriangle: AlertTriangle as any,
+    Clock: Clock as any
 }
 
 interface ReviewViewProps {
@@ -24,15 +28,27 @@ interface ReviewViewProps {
 
 export default function ReviewView({ participant, campaign }: ReviewViewProps) {
     const router = useRouter()
-    // loading 상태는 'approve' | 'reject' | null 값만 가짐
-    const [loading, setLoading] = useState<'approve' | 'reject' | null>(null)
+    const [loading, setLoading] = useState<'approve' | 'reject' | 'hold' | 'final-reject' | null>(null)
     const [rejectReason, setRejectReason] = useState("")
     const [showRejectForm, setShowRejectForm] = useState(false)
+    const [showApprovalPreflight, setShowApprovalPreflight] = useState(false)
+    const [showAuditDrawer, setShowAuditDrawer] = useState(false)
 
-    // 상태 체크
+    // DES_07 4.1: 상태 체크 (Button Guard)
     const isReviewable =
         participant.status === ParticipationStatus.SUBMITTED ||
-        participant.status === ParticipationStatus.RESUBMITTED;
+        participant.status === ParticipationStatus.RESUBMITTED
+
+    // Mock revision count (실제로는 API에서 가져옴)
+    const revisionCount = 0
+    const canRequestRevision = revisionCount < 2
+
+    // Mock auto-approve data (실제로는 API 응답)
+    const autoApproveAt = "2026-01-15T14:30:00Z"
+    const isTimerActive = isReviewable
+    const blockedReason = !isReviewable && participant.status === ParticipationStatus.IN_REVISION
+        ? "크리에이터가 수정 중입니다"
+        : undefined
 
     // 승인 핸들러
     const handleApprove = async () => {
@@ -227,33 +243,5 @@ export default function ReviewView({ participant, campaign }: ReviewViewProps) {
                 </div>
             </div>
         </div>
-    )
-}
-
-function StatusBadge({ status }: { status: ParticipationStatus | string }) {
-    // Record 타입을 사용하여 Enum Key 접근을 안전하게 처리
-    const styles: Record<string, string> = {
-        [ParticipationStatus.SUBMITTED]: "bg-green-100 text-green-700",
-        [ParticipationStatus.RESUBMITTED]: "bg-green-100 text-green-700",
-        [ParticipationStatus.IN_REVISION]: "bg-orange-100 text-orange-700",
-        [ParticipationStatus.APPROVED]: "bg-blue-100 text-blue-700",
-        [ParticipationStatus.PAID]: "bg-slate-100 text-slate-700",
-    };
-
-    const labels: Record<string, string> = {
-        [ParticipationStatus.SUBMITTED]: "검수 대기",
-        [ParticipationStatus.RESUBMITTED]: "재검수 대기",
-        [ParticipationStatus.IN_REVISION]: "수정중",
-        [ParticipationStatus.APPROVED]: "승인됨",
-        [ParticipationStatus.PAID]: "정산완료",
-    };
-
-    const styleClass = styles[status] || "bg-gray-100 text-gray-700";
-    const labelText = labels[status] || status;
-
-    return (
-        <span className={`px-2 py-1 rounded text-xs font-bold ${styleClass}`}>
-            {labelText}
-        </span>
     )
 }
